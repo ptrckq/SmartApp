@@ -1,4 +1,4 @@
-import com.redhat.intern.*;
+import com.intern.redhat.*;
 import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 
