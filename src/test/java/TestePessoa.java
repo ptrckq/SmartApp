@@ -8,10 +8,10 @@ public class TestePessoa{
 	@Test
 	public void testGetNome(){
 		Pessoa p = new Pessoa();
-		p.idade = 20;
-		p.nome = "Patrick";
+		p.setIdade = 20;
+		p.setNome = "Patrick";
 
-		Assert.assertEquals(p.nome,"Patrick");
+		Assert.assertEquals(p.getNome,"Patrick");
 	}
 }
 
