@@ -11,6 +11,12 @@ public class Pessoa {
 	public Integer getIdade(){
 		return this.idade;
 	}
+	public void setNome(String nome){
+		this.nome = nome;
+	}
+	public void setIdade(Integer idade){
+		this.idade = idade;
+	}
 
 
 }
