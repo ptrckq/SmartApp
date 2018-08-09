@@ -11,7 +11,7 @@ public class TestePessoa{
 		p.setIdade(20);
 		p.setNome("Patrick");
 
-		Assert.assertEquals(p.getNome(),"Patrick");
+		Assert.assertEquals("Patrick",p.getNome());
 	}
 }
 
