@@ -307,9 +307,6 @@
                 <plugins>
                     <plugin>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <groups>org.jboss.as.quickstarts.tasksrs.category.UnitTest</groups>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
@@ -321,9 +318,6 @@
                 <plugins>
                     <plugin>
                         <artifactId>maven-surefire-plugin</artifactId>
-                        <configuration>
-                            <groups>org.jboss.as.quickstarts.tasksrs.category.IntegrationTest</groups>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>
