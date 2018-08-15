@@ -6,15 +6,4 @@
 	</form>
 		<h2>Check your luck today </h2>
 </body>
-oi
-oi
-oioi
-oi
-oi
-oi
-oi
-oiqqweqwe
-oi
-oi
-oi
-oi
+</html>
