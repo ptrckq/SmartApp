@@ -1,0 +1,171 @@
+         def version, mvnCmd = "mvn -s configuration/cicd-settings-nexus3.xml"
+         def type
+        pipeline {
+         agent {
+          label 'maven'
+         }
+         triggers {
+            GenericTrigger(
+             genericVariables: [
+              [key: 'ref', value: '$.ref'],
+             ],
+             causeString: 'Triggered on branch $ref',
+             regexpFilterExpression: '',
+             regexpFilterText: '',
+             printContributedVariables: true,
+             printPostContent: true
+            )
+          }
+         stages {
+          stage('Clone app') {
+           steps {
+               script {
+                    sh "echo '$ref' | sed 's#refs/heads/##' > branchPushed "
+                    env.branchPushed = sh([ script: "cat branchPushed", returnStdout: true ]).trim()
+                    sh 'echo ${branchPushed} | grep -o ^[^/]* > branchType'
+                    env.branchType = sh([script: "cat branchType ", returnStdout: true ]).trim()
+                    sh '''echo ${branchType} | grep -o [^/]*\$ > branchType'''
+                    env.appName = sh([script: 'cat branchPushed', returnStdout: true]).trim()
+                    type = sh([script: "cat branchType | grep -o ^[^/]* ", returnStdout: true ]).trim()
+                    
+                switch(type) {
+                      case ["develop","feature"]:
+                        env.CURRENTPROJECT =  'dev-developer'
+                        break
+                      case ["hotfix","release"]:
+                        env.CURRENTPROJECT = 'stage-developer'
+                        break
+                      case "master":
+                        env.CURRENTPROJECT = ''
+                        currentBuild.result = 'ABORTED'
+                        error('Commits in branch master should not trigger this pipeline, use tags')
+                        break
+                      default:
+                        env.appName = "master"
+                        env.CURRENTPROJECT = "prod-developer"
+                        env.branchPushed = "master"
+                        break
+                }
+               }
+              git branch: "${branchPushed}", url: 'http://gogs-cicd-developer.192.168.42.87.nip.io/gogs/smartapp.git'
+              script {
+              def pom = readMavenPom file: 'pom.xml'
+              version = pom.version
+            }
+            sh "${mvnCmd} clean package -DskipTests=true"
+           }
+          }
+           stage('Test') {
+                  when {
+                      expression {return env.CURRENTPROJECT != "prod-developer"}
+                  }
+                steps {
+                  sh "${mvnCmd} test"
+                  step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/TEST-*.xml'])
+                }
+           }
+         stage('Code Analysis') {
+             when {
+                      expression {return env.CURRENTPROJECT != "prod-developer"}
+                  }
+                steps {
+                  script {
+                    sh "${mvnCmd} sonar:sonar -Dsonar.host.url=http://sonarqube:9000 -DskipTests=true"
+                  }
+                }
+              }
+
+
+
+          stage('Create Image Builder') {
+           when {
+            expression {
+             openshift.withCluster() {
+              openshift.withProject(env.CURRENTPROJECT) {
+               return !openshift.selector("bc", "smartapp-${appName}").exists();
+              }
+             }
+            }
+           }
+           steps {
+            script {
+             openshift.withCluster() {
+              openshift.withProject(env.CURRENTPROJECT) {
+               openshift.newBuild("--name=smartapp-${appName}", "--image-stream=jboss-eap70-openshift:1.5", "--binary=true")
+              }
+             }
+            }
+           }
+          }
+          stage('Build Image') {
+           steps {
+            sh "rm -rf oc-build && mkdir -p oc-build/deployments"
+            sh "cp target/smartapp.war oc-build/deployments/ROOT.war"
+
+            script {
+             openshift.withCluster() {
+              openshift.withProject(env.CURRENTPROJECT) {
+               openshift.selector("bc", "smartapp-${appName}").startBuild("--from-dir=oc-build", "--wait=true")
+              }
+             }
+            }
+           }
+          }
+          stage('Create DC') {
+               
+           when {
+            expression {
+             openshift.withCluster() {
+              openshift.withProject(env.CURRENTPROJECT) {
+               return !openshift.selector('dc', 'smartapp-${appName}').exists()
+              }
+             }
+            }
+           }
+           steps {
+            script {
+             openshift.withCluster() {
+              openshift.withProject(env.CURRENTPROJECT) {
+               def app = openshift.newApp("smartapp-${appName}:latest")
+               app.narrow("svc").expose();
+
+               def dc = openshift.selector("dc", "smartapp-${appName}")
+               while (dc.object().spec.replicas != dc.object().status.availableReplicas) {
+                sleep 10
+               }
+               openshift.set("triggers", "dc/smartapp-${appName}", "--manual")
+              }
+             }
+            }
+           }
+          }
+          stage('Deploy Application') {
+                 
+                steps {
+                  script {
+                    openshift.withCluster() {
+                      openshift.withProject(env.CURRENTPROJECT) {
+                        openshift.selector("dc", "smartapp-${appName}").rollout().latest();
+                      } 
+                     }
+                    }
+                  }
+              }
+            }
+           }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
