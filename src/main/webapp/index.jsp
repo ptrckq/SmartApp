@@ -7,4 +7,3 @@
 		<h2>Check your luck today </h2>
 </body>
 </html>
-oi
